@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgriSaathi Edge AI</title>
+  <style>
+    /* ── Reset & Base ───────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 14px;
+      padding-bottom: 90px; /* space for chatbot FAB */
+    }
+
+    /* ── Topbar ─────────────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .app-title { font-size: 1.35rem; font-weight: 800; color: #16a34a; }
+    .app-sub   { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+    .live-pill {
+      background: #dcfce7; color: #15803d;
+      padding: 4px 10px; border-radius: 99px;
+      font-size: 0.75rem; font-weight: 800;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .pulse-dot {
+      width: 8px; height: 8px;
+      background: #16a34a; border-radius: 50%;
+      display: inline-block;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(1.3); }
+    }
+
+    /* ── Weather Box ────────────────────────────────────────────────────── */
+    .weather-box {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      border-radius: 18px; padding: 16px 20px;
+      color: white; margin-bottom: 12px;
+      box-shadow: 0 4px 10px rgba(2,132,199,0.25);
+    }
+
+    /* ── Cards ──────────────────────────────────────────────────────────── */
+    .card {
+      background: white; border-radius: 16px;
+      padding: 16px; margin-bottom: 12px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .card-label {
+      font-size: 0.72rem; color: #64748b;
+      font-weight: 700; text-transform: uppercase; margin-bottom: 4px;
+    }
+    .card-val { font-size: 1.65rem; font-weight: 800; }
+
+    /* ── Grid ───────────────────────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px; margin-bottom: 12px;
+    }
+
+    /* ── Badges ─────────────────────────────────────────────────────────── */
+    .badge-on  { background: #dcfce7; color: #15803d; padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 0.95rem; }
+    .badge-off { background: #f1f5f9; color: #64748b; padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 0.95rem; }
+
+    /* ── Pest Alert ─────────────────────────────────────────────────────── */
+    .pest-normal {
+      background: #dcfce7; color: #15803d;
+      padding: 10px; border-radius: 12px;
+      font-weight: 700; text-align: center;
+      border: 1px solid #bbf7d0;
+      margin-bottom: 12px;
+    }
+    .pest-alert {
+      background: #fee2e2; color: #dc2626;
+      padding: 10px; border-radius: 12px;
+      font-weight: 800; text-align: center;
+      border: 1px solid #f87171;
+      margin-bottom: 12px;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 50% { opacity: 0.55; } }
+
+    /* ── VPD Gauge ──────────────────────────────────────────────────────── */
+    .vpd-meter {
+      background: #f8fafc; border-radius: 12px;
+      padding: 12px; margin-top: 8px;
+      border: 1px solid #e2e8f0; position: relative;
+    }
+    .vpd-bar-bg {
+      height: 10px; border-radius: 99px;
+      background: linear-gradient(to right,
+        #ef4444 0%, #ef4444 25%,
+        #22c55e 35%, #22c55e 65%,
+        #ef4444 75%, #ef4444 100%);
+      margin: 10px 0 6px; position: relative;
+    }
+    .vpd-needle {
+      position: absolute; top: -4px;
+      width: 3px; height: 18px;
+      background: #0f172a; border-radius: 2px;
+      transform: translateX(-50%);
+      transition: left 0.6s ease;
+    }
+    .vpd-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.7rem; color: #64748b; font-weight: 600;
+    }
+
+    /* ── Camera Scanner ─────────────────────────────────────────────────── */
+    .cam-box {
+      background: white; border-radius: 18px;
+      padding: 18px; border: 2px solid #16a34a;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(22,163,74,0.12);
+      margin-bottom: 12px;
+    }
+    .cam-btn {
+      background: #16a34a; color: white;
+      border: none; padding: 14px; border-radius: 12px;
+      font-size: 1rem; font-weight: 800; width: 100%;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      box-shadow: 0 2px 4px rgba(22,163,74,0.3);
+      transition: background 0.2s;
+    }
+    .cam-btn:hover  { background: #15803d; }
+    .cam-btn:disabled { background: #86efac; cursor: not-allowed; }
+
+    .preview-img {
+      max-width: 100%; border-radius: 12px;
+      margin-top: 14px; display: none;
+      border: 1px solid #cbd5e1;
+      max-height: 240px; object-fit: cover;
+    }
+
+    /* ── Diagnosis Card ─────────────────────────────────────────────────── */
+    .diag-card {
+      display: none; margin-top: 14px;
+      border-radius: 12px; padding: 14px;
+      text-align: left;
+    }
+    .diag-card.water    { background: #fef3c7; border: 1px solid #f59e0b; }
+    .diag-card.nutrient { background: #fef3c7; border: 1px solid #f59e0b; }
+    .diag-card.pathogen { background: #f0fdf4; border: 1px solid #86efac; }
+    .diag-card.error    { background: #fef2f2; border: 1px solid #fca5a5; }
+
+    .diag-title    { font-weight: 800; font-size: 1.1rem; margin-bottom: 2px; }
+    .diag-conf     { color: #64748b; font-size: 0.82rem; margin-bottom: 8px; }
+    .diag-cross    {
+      background: white; border: 1px solid #cbd5e1;
+      border-radius: 8px; padding: 8px 10px;
+      font-size: 0.85rem; margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    .diag-rx       { font-size: 0.88rem; line-height: 1.6; }
+    .diag-rx .telugu { margin-top: 6px; color: #475569; }
+
+    /* ── Skeleton loader ────────────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px; height: 1em; margin: 4px 0;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ════════════════════════════════════════════════════════════════════
+       CHATBOT PANEL
+    ════════════════════════════════════════════════════════════════════ */
+
+    /* Floating Action Button */
+    .chat-fab {
+      position: fixed; bottom: 20px; right: 18px; z-index: 1000;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #16a34a; color: white; border: none;
+      font-size: 1.5rem; cursor: pointer;
+      box-shadow: 0 4px 14px rgba(22,163,74,0.45);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .chat-fab:hover { background: #15803d; transform: scale(1.08); }
+
+    /* Chat panel slide-up */
+    .chat-panel {
+      position: fixed; bottom: 85px; right: 14px; left: 14px;
+      z-index: 999;
+      background: white; border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      display: flex; flex-direction: column;
+      max-height: 70vh;
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+      transform: translateY(20px) scale(0.97);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+    .chat-panel.open {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* Chat header */
+    .chat-header {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: white; padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .chat-header-title { font-weight: 800; font-size: 1rem; }
+    .chat-header-sub   { font-size: 0.72rem; opacity: 0.85; margin-top: 1px; }
+    .chat-close {
+      background: rgba(255,255,255,0.2); border: none;
+      color: white; width: 28px; height: 28px;
+      border-radius: 50%; font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Messages area */
+    .chat-messages {
+      flex: 1; overflow-y: auto;
+      padding: 14px; display: flex;
+      flex-direction: column; gap: 10px;
+    }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+    /* Bubbles */
+    .msg {
+      max-width: 85%; line-height: 1.55;
+      font-size: 0.88rem; padding: 10px 13px;
+      border-radius: 16px; word-break: break-word;
+    }
+    .msg.user  {
+      align-self: flex-end;
+      background: #16a34a; color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.bot   {
+      align-self: flex-start;
+      background: #f1f5f9; color: #0f172a;
+      border-bottom-left-radius: 4px;
+      white-space: pre-wrap;
+    }
+    .msg.typing {
+      align-self: flex-start;
+      background: #f1f5f9;
+      padding: 12px 16px;
+    }
+    .typing-dots span {
+      display: inline-block;
+      width: 7px; height: 7px;
+      background: #94a3b8; border-radius: 50%;
+      margin: 0 2px;
+      animation: bounce 1.2s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%            { transform: translateY(-7px); }
+    }
+
+    /* Input row */
+    .chat-input-row {
+      display: flex; gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid #e2e8f0;
+      flex-shrink: 0;
+      background: white;
+    }
+    .chat-input {
+      flex: 1; border: 1.5px solid #cbd5e1;
+      border-radius: 10px; padding: 9px 12px;
+      font-size: 0.9rem; outline: none;
+      transition: border-color 0.2s;
+      resize: none; height: 40px;
+      font-family: inherit;
+    }
+    .chat-input:focus { border-color: #16a34a; }
+    .chat-send {
+      background: #16a34a; color: white;
+      border: none; border-radius: 10px;
+      padding: 0 16px; font-size: 1.1rem;
+      cursor: pointer; flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .chat-send:hover    { background: #15803d; }
+    .chat-send:disabled { background: #86efac; cursor: not-allowed; }
+
+    /* Suggested prompts */
+    .chat-suggestions {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 0 12px 10px;
+    }
+    .suggestion-chip {
+      background: #f0fdf4; color: #15803d;
+      border: 1px solid #bbf7d0;
+      border-radius: 99px; padding: 5px 11px;
+      font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .suggestion-chip:hover { background: #dcfce7; }
+
+    /* ── Responsive tweaks ──────────────────────────────────────────────── */
+    @media (min-width: 480px) {
+      .chat-panel { left: auto; width: 380px; }
+      .chat-fab   { right: 24px; bottom: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Topbar ───────────────────────────────────────────────────────────── -->
+  <div class="topbar">
+    <div>
+      <div class="app-title">AgriSaathi Live</div>
+      <div class="app-sub">📍 {{ field_name }}</div>
+    </div>
+    <div class="live-pill"><span class="pulse-dot"></span> LIVE SYNC</div>
+  </div>
+
+  <!-- ── Weather Box ──────────────────────────────────────────────────────── -->
+  <div class="weather-box">
+    <div style="font-size:0.8rem;opacity:0.9;">🌤️ HYPER-LOCAL MICROCLIMATE</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin:4px 0;">
+      <div style="font-size:1.8rem;font-weight:800;" id="val-weather">
+        <span id="val-t-weather">--</span>°C <span style="font-size:1.1rem;font-weight:normal;">Clear</span>
+      </div>
+      <div style="font-size:0.85rem;text-align:right;">
+        Est. ET₀ Water Loss: <strong>3.4 mm/day</strong>
+      </div>
+    </div>
+    <div style="font-size:0.78rem;opacity:0.9;">
+      Rain Lockout: <strong>STANDBY (DRY)</strong> | Solar Irradiance: Optimal
+    </div>
+  </div>
+
+  <!-- ── Pest Sensor Alert ─────────────────────────────────────────────────── -->
+  <div id="pest-box" class="pest-normal">
+    PEST SENSOR (SW-420): <span id="pest-text">NORMAL (OK - No Disturbance)</span>
+  </div>
+
+  <!-- ── Pump Control Card ────────────────────────────────────────────────── -->
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div class="card-label">IRRIGATION PUMP</div>
+      <div style="font-size:0.85rem;color:#64748b;">Autonomous Hysteresis Loop</div>
+    </div>
+    <div id="pump-tag" class="badge-on">--</div>
+  </div>
+
+  <!-- ── 6-Metric Grid ────────────────────────────────────────────────────── -->
+  <div class="grid">
+    <div class="card">
+      <div class="card-label">💧 Soil Moisture</div>
+      <div class="card-val" style="color:#0284c7;" id="val-m">--%</div>
+    </div>
+    <div class="card">
+      <div class="card-label">☀️ Ambient Light</div>
+      <div class="card-val" style="font-size:1.2rem;margin-top:6px;color:#475569;" id="val-sun">--</div>
+    </div>
+    <div class="card">
+      <div class="card-label">🌡️ Temperature</div>
+      <div class="card-val" style="color:#ea580c;" id="val-t">--°C</div>
+    </div>
+    <div class="card">
+      <div class="card-label">☁️ Humidity</div>
+      <div class="card-val" style="color:#0284c7;" id="val-h">--%</div>
+    </div>
+    <div class="card">
+      <div class="card-label">🧪 Soil pH</div>
+      <div class="card-val" style="color:#16a34a;" id="val-ph">--</div>
+    </div>
+    <div class="card">
+      <div class="card-label">⚡ Soil EC</div>
+      <div class="card-val" style="color:#16a34a;font-size:1.35rem;margin-top:4px;" id="val-ec">-- dS/m</div>
+    </div>
+  </div>
+
+  <!-- ── VPD Card ──────────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div class="card-label">🌫️ VAPOR PRESSURE DEFICIT (VPD)</div>
+        <div style="font-size:0.8rem;color:#64748b;">Atmospheric Drying Demand</div>
+      </div>
+      <div class="card-val" style="color:#15803d;font-size:1.4rem;" id="val-vpd">-- kPa</div>
+    </div>
+    <div class="vpd-meter">
+      <div class="vpd-bar-bg">
+        <div class="vpd-needle" id="vpd-needle" style="left:50%;"></div>
+      </div>
+      <div class="vpd-labels">
+        <span style="color:#dc2626;">&lt;0.4 kPa (Fungal Risk)</span>
+        <span style="color:#16a34a;">0.8–1.2 (Optimal)</span>
+        <span style="color:#dc2626;">&gt;1.6 kPa (Heat Stress)</span>
+      </div>
+    </div>
+    <div id="vpd-status" style="font-size:0.8rem;margin-top:8px;color:#475569;font-weight:600;">
+      Waiting for sensor data…
+    </div>
+  </div>
+
+  <!-- ── NPK Card ──────────────────────────────────────────────────────────── -->
+  <div class="card" style="text-align:center;">
+    <div class="card-label">🌱 MACRONUTRIENTS (NPK FERTILITY INDEX)</div>
+    <div style="display:flex;justify-content:space-around;margin-top:10px;">
+      <div>
+        <span style="font-size:0.75rem;color:#64748b;">Nitrogen (N)</span>
+        <div class="card-val" style="font-size:1.15rem;margin-top:2px;" id="val-n">-- ppm</div>
+      </div>
+      <div>
+        <span style="font-size:0.75rem;color:#64748b;">Phosphorus (P)</span>
+        <div class="card-val" style="font-size:1.15rem;margin-top:2px;" id="val-p">-- ppm</div>
+      </div>
+      <div>
+        <span style="font-size:0.75rem;color:#64748b;">Potassium (K)</span>
+        <div class="card-val" style="font-size:1.15rem;margin-top:2px;" id="val-k">-- ppm</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AI Leaf Scanner ───────────────────────────────────────────────────── -->
+  <div class="cam-box">
+    <div class="card-label" style="margin-bottom:6px;color:#15803d;">🌿 MULTIMODAL AI FOLIAR SCANNER</div>
+    <div style="font-size:0.82rem;color:#64748b;margin-bottom:12px;">
+      Snap any leaf: Gemini Vision cross-checks live ground soil sensors in real time.
+    </div>
+
+    <input type="file" id="cameraInput" accept="image/*" capture="environment"
+           style="display:none;" onchange="analyzeLeaf(this)" />
+    <button class="cam-btn" id="cam-btn" onclick="document.getElementById('cameraInput').click();">
+      📸 Open Camera &amp; Scan Leaf
+    </button>
+
+    <img id="leafPreview" class="preview-img" alt="Leaf Preview" />
+
+    <div id="diagCard" class="diag-card">
+      <div class="diag-title" id="diag-title"></div>
+      <div class="diag-conf"  id="diag-conf"></div>
+      <div class="diag-cross" id="diag-cross"></div>
+      <div class="diag-rx"    id="diag-rx"></div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       CHATBOT FAB + PANEL
+  ════════════════════════════════════════════════════════════════════════════ -->
+
+  <button class="chat-fab" id="chat-fab" onclick="toggleChat()" aria-label="Open AI Chatbot">
+    🤖
+  </button>
+
+  <div class="chat-panel" id="chat-panel" role="dialog" aria-label="AgriSaathi AI Chat">
+
+    <!-- Header -->
+    <div class="chat-header">
+      <div>
+        <div class="chat-header-title">🌾 AgriSaathi AI</div>
+        <div class="chat-header-sub">Ask anything about your crops, soil &amp; pests</div>
+      </div>
+      <button class="chat-close" onclick="toggleChat()" aria-label="Close chat">✕</button>
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chat-messages">
+      <div class="msg bot">
+        👋 Hello! I'm AgriSaathi AI. I can see your live sensor readings and help you make the right farming decisions.<br><br>
+        Ask me anything — in <strong>English</strong> or <strong>తెలుగు</strong>!
+      </div>
+    </div>
+
+    <!-- Suggested prompts (shown once, hidden after first message) -->
+    <div class="chat-suggestions" id="chat-suggestions">
+      <span class="suggestion-chip" onclick="sendSuggestion(this)">Is my soil moisture OK?</span>
+      <span class="suggestion-chip" onclick="sendSuggestion(this)">What does my NPK say?</span>
+      <span class="suggestion-chip" onclick="sendSuggestion(this)">నా పంటకు నీరు అవసరమా?</span>
+      <span class="suggestion-chip" onclick="sendSuggestion(this)">Explain VPD reading</span>
+    </div>
+
+    <!-- Input -->
+    <div class="chat-input-row">
+      <textarea class="chat-input" id="chat-input"
+        placeholder="Ask about your crop…"
+        rows="1"
+        onkeydown="handleChatKey(event)"
+        oninput="autoGrow(this)"
+        aria-label="Chat message input"></textarea>
+      <button class="chat-send" id="chat-send" onclick="sendChat()" aria-label="Send message">➤</button>
+    </div>
+
+  </div><!-- /chat-panel -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       JAVASCRIPT
+  ════════════════════════════════════════════════════════════════════════════ -->
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────────
+    const SESSION_ID = 'sess_' + Math.random().toString(36).slice(2, 10);
+    let chatOpen    = false;
+    let chatBusy    = false;
+    let diagBusy    = false;
+
+    // ── Sensor Polling ─────────────────────────────────────────────────────────
+    async function fetchSensors() {
+      try {
+        const res  = await fetch('/api/sensor-data');
+        const data = await res.json();
+        applySensorData(data);
+      } catch (e) {
+        // fail silently — stale values stay visible
+      }
+    }
+
+    function applySensorData(d) {
+      setText('val-m',        d.soil_moisture + '%');
+      setText('val-t',        d.temperature   + '°C');
+      setText('val-t-weather',d.temperature);
+      setText('val-h',        d.humidity      + '%');
+      setText('val-ph',       d.ph);
+      setText('val-ec',       d.ec            + ' dS/m');
+      setText('val-n',        d.N             + ' ppm');
+      setText('val-p',        d.P             + ' ppm');
+      setText('val-k',        d.K             + ' ppm');
+      setText('val-vpd',      d.vpd           + ' kPa');
+      setText('val-sun',      d.sunlight || 'DAYLIGHT');
+
+      // Pump badge
+      const pTag = document.getElementById('pump-tag');
+      pTag.textContent  = d.pump_status;
+      pTag.className    = d.pump_status === 'ON' ? 'badge-on' : 'badge-off';
+
+      // Pest alert
+      const pestBox  = document.getElementById('pest-box');
+      const pestText = document.getElementById('pest-text');
+      if (d.pest_alert) {
+        pestBox.className  = 'pest-alert';
+        pestText.textContent = '🚨 VIBRATION ALERT (STEM BORER RISK)';
+      } else {
+        pestBox.className  = 'pest-normal';
+        pestText.textContent = 'NORMAL (OK - No Disturbance)';
+      }
+
+      // Fungal risk from ESP32 on-board logic
+      if (d.fungal_risk) {
+        pestBox.className = 'pest-alert';
+        pestText.textContent = '🍄 FUNGAL RISK DETECTED (High Humidity + Low VPD)';
+      }
+
+      // VPD needle (map 0–2.0 kPa range to 0–100%)
+      const needlePct = Math.min(Math.max((d.vpd / 2.0) * 100, 0), 100);
+      document.getElementById('vpd-needle').style.left = needlePct + '%';
+
+      // VPD status text
+      const vpdEl = document.getElementById('vpd-status');
+      if (d.vpd < 0.4) {
+        vpdEl.innerHTML = '<span style="color:#dc2626;">🚨 ALERT: Stagnant air window. Fungal spore germination risk active!</span>';
+      } else if (d.vpd > 1.6) {
+        vpdEl.innerHTML = '<span style="color:#ea580c;">⚠️ WARNING: Extreme transpiration demand. Crop closing stomata.</span>';
+      } else {
+        vpdEl.innerHTML = '<span style="color:#16a34a;">✅ Optimal Growth: Transpiration balanced. Stomata open for photosynthesis.</span>';
+      }
+    }
+
+    // Poll every 2 s, and fetch immediately on load
+    fetchSensors();
+    setInterval(fetchSensors, 2000);
+
+
+    // ── Leaf Analysis ──────────────────────────────────────────────────────────
+    async function analyzeLeaf(input) {
+      if (!input.files || !input.files[0] || diagBusy) return;
+      diagBusy = true;
+
+      const file     = input.files[0];
+      const camBtn   = document.getElementById('cam-btn');
+      const preview  = document.getElementById('leafPreview');
+      const diagCard = document.getElementById('diagCard');
+
+      // Show preview immediately
+      preview.src          = URL.createObjectURL(file);
+      preview.style.display = 'block';
+
+      // Show loading skeleton
+      diagCard.className   = 'diag-card pathogen';
+      diagCard.style.display = 'block';
+      setHTML('diag-title', '<div class="skeleton" style="width:60%;height:1.1em;"></div>');
+      setHTML('diag-conf',  '<div class="skeleton" style="width:40%;"></div>');
+      setHTML('diag-cross', '<div class="skeleton"></div><div class="skeleton" style="width:80%;margin-top:6px;"></div>');
+      setHTML('diag-rx',    '<div class="skeleton" style="width:90%;"></div><div class="skeleton" style="width:70%;margin-top:6px;"></div>');
+
+      camBtn.disabled     = true;
+      camBtn.textContent  = '⏳ Analysing…';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res  = await fetch('/api/diagnose-leaf', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!res.ok) {
+          renderDiagError(data.detail || 'AI analysis failed. Please try again.');
+          return;
+        }
+        renderDiagResult(data);
+      } catch (e) {
+        renderDiagError('Network error. Check your connection and retry.');
+      } finally {
+        camBtn.disabled    = false;
+        camBtn.innerHTML   = '📸 Open Camera &amp; Scan Leaf';
+        diagBusy = false;
+        // Reset file input so the same image can be re-selected
+        input.value = '';
+      }
+    }
+
+    function renderDiagResult(d) {
+      const diagCard = document.getElementById('diagCard');
+      const confPct  = Math.round((d.confidence || 0) * 100);
+
+      // Card colour
+      const classMap = {
+        'OVERRIDE_WATER'   : 'water',
+        'OVERRIDE_NUTRIENT': 'nutrient',
+        'CONFIRMED_PATHOGEN': 'pathogen',
+      };
+      const iconMap = {
+        'OVERRIDE_WATER'   : '💧',
+        'OVERRIDE_NUTRIENT': '🌿',
+        'CONFIRMED_PATHOGEN': '🦠',
+      };
+      diagCard.className = 'diag-card ' + (classMap[d.status_type] || 'pathogen');
+
+      const titleColour = d.status_type === 'CONFIRMED_PATHOGEN' ? '#15803d' : '#b45309';
+      setHTML('diag-title', `<span style="color:${titleColour};">${iconMap[d.status_type] || '🔍'} ${escHtml(d.title)}</span>`);
+      setText('diag-conf',  `Confidence: ${confPct}% | ${d.status_type}`);
+      setHTML('diag-cross', `<strong>Ground Sensor Cross-Check:</strong> ${escHtml(d.cross_check)}`);
+      setHTML('diag-rx',
+        `<strong>Prescription:</strong> ${escHtml(d.prescription)}` +
+        `<div class="telugu"><strong>తెలుగు:</strong> ${escHtml(d.prescription_telugu)}</div>`
+      );
+    }
+
+    function renderDiagError(msg) {
+      document.getElementById('diagCard').className = 'diag-card error';
+      setHTML('diag-title', '❌ Analysis Error');
+      setText('diag-conf',  '');
+      setHTML('diag-cross', escHtml(msg));
+      setText('diag-rx',    '');
+    }
+
+
+    // ── Chatbot ────────────────────────────────────────────────────────────────
+    function toggleChat() {
+      chatOpen = !chatOpen;
+      document.getElementById('chat-panel').classList.toggle('open', chatOpen);
+      document.getElementById('chat-fab').textContent = chatOpen ? '✕' : '🤖';
+      if (chatOpen) {
+        setTimeout(() => document.getElementById('chat-input').focus(), 250);
+        scrollChatToBottom();
+      }
+    }
+
+    function handleChatKey(e) {
+      // Send on Enter (without Shift)
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChat();
+      }
+    }
+
+    function autoGrow(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+    }
+
+    function sendSuggestion(el) {
+      const text = el.textContent;
+      document.getElementById('chat-suggestions').style.display = 'none';
+      document.getElementById('chat-input').value = text;
+      sendChat();
+    }
+
+    async function sendChat() {
+      const input   = document.getElementById('chat-input');
+      const message = input.value.trim();
+      if (!message || chatBusy) return;
+
+      chatBusy = true;
+      input.value = '';
+      input.style.height = 'auto';
+
+      // Hide suggestions after first message
+      document.getElementById('chat-suggestions').style.display = 'none';
+
+      // Append user bubble
+      appendMsg('user', message);
+
+      // Show typing indicator
+      const typingId = appendTyping();
+
+      document.getElementById('chat-send').disabled = true;
+
+      try {
+        const res  = await fetch('/api/chat', {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({ message, session_id: SESSION_ID }),
+        });
+        const data = await res.json();
+
+        removeMsg(typingId);
+
+        if (!res.ok) {
+          appendMsg('bot', '⚠️ ' + (data.detail || 'Something went wrong. Please try again.'));
+        } else {
+          appendMsg('bot', data.reply);
+        }
+      } catch (e) {
+        removeMsg(typingId);
+        appendMsg('bot', '⚠️ Network error. Please check your connection.');
+      } finally {
+        chatBusy = false;
+        document.getElementById('chat-send').disabled = false;
+        input.focus();
+      }
+    }
+
+    function appendMsg(role, text) {
+      const el = document.createElement('div');
+      el.className = 'msg ' + role;
+      el.textContent = text;
+      document.getElementById('chat-messages').appendChild(el);
+      scrollChatToBottom();
+      return el.id = 'msg-' + Date.now() + Math.random();
+    }
+
+    function appendTyping() {
+      const id = 'typing-' + Date.now();
+      const el = document.createElement('div');
+      el.className = 'msg typing';
+      el.id        = id;
+      el.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+      document.getElementById('chat-messages').appendChild(el);
+      scrollChatToBottom();
+      return id;
+    }
+
+    function removeMsg(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+
+    function scrollChatToBottom() {
+      const msgs = document.getElementById('chat-messages');
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+
+    // ── Utility helpers ────────────────────────────────────────────────────────
+    function setText(id, val) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    }
+    function setHTML(id, val) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = val;
+    }
+    function escHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+
+</body>
+</html>
